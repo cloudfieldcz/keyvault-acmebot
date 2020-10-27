@@ -167,6 +167,14 @@
               "value": "[if(parameters('createWithKeyVault'), concat('https://', variables('keyVaultName'), environment().suffixes.keyvaultDns), '')]"
             },
             {
+              "name": "Acmebot:KeyVaultId",
+              "value": "[if(parameters('createWithKeyVault'), resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '')]"
+            },
+            {
+              "name": "Acmebot:CertBlobStoreConnString",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountId'), '2018-11-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)]"
+            },
+            {
               "name": "Acmebot:Environment",
               "value": "[environment().name]"
             }
