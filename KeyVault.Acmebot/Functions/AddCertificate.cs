@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 using Azure.WebJobs.Extensions.HttpApi;
 
@@ -35,6 +37,11 @@ namespace KeyVault.Acmebot.Functions
             {
                 return ValidationProblem(ModelState);
             }
+
+            // sort domains - shortest first
+            var domains = new string[request.DnsNames.Length];
+            Array.Copy(request.DnsNames, domains, request.DnsNames.Length);
+            request.DnsNames = domains.OrderBy(e => e.Length).ToArray();
 
             // Function input comes from the request content.
             var instanceId = await starter.StartNewAsync(nameof(SharedOrchestrator.IssueCertificate), request.DnsNames);

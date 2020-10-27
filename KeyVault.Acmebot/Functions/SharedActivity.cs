@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 using ACMESharp.Authorizations;
@@ -12,6 +13,9 @@ using Azure.Security.KeyVault.Certificates;
 
 using DnsClient;
 
+using DurableTask.TypedProxy;
+
+using KeyVault.Acmebot.Contracts;
 using KeyVault.Acmebot.Internal;
 using KeyVault.Acmebot.Models;
 using KeyVault.Acmebot.Options;
@@ -25,12 +29,22 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
 namespace KeyVault.Acmebot.Functions
+using Microsoft.Azure.Management.FrontDoor;
+using Microsoft.Azure.Management.FrontDoor.Models;
+using Azure.Security.KeyVault.Secrets;
+using Microsoft.WindowsAzure.Storage;
+
+namespace KeyVault.Acmebot
 {
     public class SharedActivity : ISharedActivity
     {
         public SharedActivity(LookupClient lookupClient, AcmeProtocolClientFactory acmeProtocolClientFactory,
                               IDnsProvider dnsProvider, CertificateClient certificateClient,
                               WebhookInvoker webhookInvoker, IOptions<AcmebotOptions> options, ILogger<SharedActivity> logger)
+        public SharedFunctions(LookupClient lookupClient, IAcmeProtocolClientFactory acmeProtocolClientFactory,
+                               IDnsProvider dnsProvider, CertificateClient certificateClient,
+                               WebhookClient webhookClient, IOptions<AcmebotOptions> options, ILogger<SharedFunctions> logger,
+                               FrontDoorManagementClient frontDoorManagementClient, SecretClient secretClient)
         {
             _acmeProtocolClientFactory = acmeProtocolClientFactory;
             _dnsProvider = dnsProvider;
@@ -39,6 +53,9 @@ namespace KeyVault.Acmebot.Functions
             _webhookInvoker = webhookInvoker;
             _options = options.Value;
             _logger = logger;
+
+            _frontDoorManagementClient = frontDoorManagementClient;
+            _secretClient = secretClient;
         }
 
         private readonly LookupClient _lookupClient;
@@ -48,6 +65,9 @@ namespace KeyVault.Acmebot.Functions
         private readonly WebhookInvoker _webhookInvoker;
         private readonly AcmebotOptions _options;
         private readonly ILogger<SharedActivity> _logger;
+
+        private readonly FrontDoorManagementClient _frontDoorManagementClient;
+        private readonly SecretClient _secretClient;
 
         private const string IssuerName = "Acmebot";
 
@@ -104,6 +124,20 @@ namespace KeyVault.Acmebot.Functions
             {
                 return Array.Empty<string>();
             }
+        }
+
+        [FunctionName(nameof(GetAllFDoors))]
+        public async Task<List<AzureFrontDoor>> GetAllFDoors([ActivityTrigger] object input = null)
+        {
+            var page = await _frontDoorManagementClient.FrontDoors.ListAsync();
+            var r = new List<AzureFrontDoor>();
+            r.AddRange(page.Select(e => { return new AzureFrontDoor(e.Name, e.FrontendEndpoints.Select(f => f.HostName).ToList()); }));
+            while (page.NextPageLink != null)
+            {
+                page = await _frontDoorManagementClient.FrontDoors.ListNextAsync(page.NextPageLink);
+                r.AddRange(page.Select(e => { return new AzureFrontDoor(e.Name, e.FrontendEndpoints.Select(f => f.HostName).ToList()); }));
+            }
+            return r;
         }
 
         [FunctionName(nameof(Order))]
@@ -317,7 +351,12 @@ namespace KeyVault.Acmebot.Functions
         [FunctionName(nameof(FinalizeOrder))]
         public async Task<OrderDetails> FinalizeOrder([ActivityTrigger] (string, IReadOnlyList<string>, OrderDetails) input)
         {
-            var (certificateName, dnsNames, orderDetails) = input;
+            var (dnsNames, orderDetails, frontdoorName) = input;
+
+            // create certificate name
+            var arrNames = dnsNames[0].Replace("*", "wildcard").Split('.');
+            Array.Reverse(arrNames);
+            var certificateName = String.Join("-", arrNames);
 
             byte[] csr;
 
@@ -331,12 +370,20 @@ namespace KeyVault.Acmebot.Functions
                     subjectAlternativeNames.DnsNames.Add(dnsName);
                 }
 
-                var policy = new CertificatePolicy(WellKnownIssuerNames.Unknown, subjectAlternativeNames);
+                //var policy = new CertificatePolicy(WellKnownIssuerNames.Unknown, subjectAlternativeNames);
+                var policy = new CertificatePolicy(WellKnownIssuerNames.Unknown, subjectAlternativeNames)
+                {
+                    Exportable = true,
+                    KeyType = "RSA",
+                    KeySize = (frontdoorName.EndsWith("2048#")) ? 2048 : 4096,
+                    ReuseKey = false
+                };
 
                 var certificateOperation = await _certificateClient.StartCreateCertificateAsync(certificateName, policy, tags: new Dictionary<string, string>
                 {
                     { "Issuer", IssuerName },
-                    { "Endpoint", _options.Endpoint }
+                    { "Endpoint", _options.Endpoint },
+                    { "FrontDoor", frontdoorName}
                 });
 
                 csr = certificateOperation.Properties.Csr;
@@ -391,7 +438,56 @@ namespace KeyVault.Acmebot.Functions
                 x509Certificates.Cast<X509Certificate2>().Select(x => x.Export(X509ContentType.Pfx))
             );
 
-            return (await _certificateClient.MergeCertificateAsync(mergeCertificateOptions)).Value.ToCertificateItem();
+            var certBundle = (await _certificateClient.MergeCertificateAsync(mergeCertificateOptions)).Value;
+            var ret = certBundle.ToCertificateItem();
+
+            // export key
+            if (frontdoorName.StartsWith("#CERTIFICATE-EXP-"))
+            {
+                var _sec = (await _secretClient.GetSecretAsync(certificateName)).Value;
+                byte[] arr = Convert.FromBase64String(_sec.Value);
+
+                await CloudStorageAccount.Parse(_options.CertBlobStoreConnString)
+                    .CreateCloudBlobClient()
+                    .GetContainerReference("certs")
+                    .GetBlockBlobReference(certificateName + ".pfx")
+                    .UploadFromByteArrayAsync(arr, 0, arr.Length);
+            }
+
+            // if there is frontdoor set the certificate for each frontdoor host
+            if (frontdoorName != null && frontdoorName.Length > 0)
+            {
+                var page = await _frontDoorManagementClient.FrontDoors.ListAsync();
+                var r = new List<FrontDoorModel>();
+                r.AddRange(page);
+                while (page.NextPageLink != null)
+                {
+                    page = await _frontDoorManagementClient.FrontDoors.ListNextAsync(page.NextPageLink);
+                    r.AddRange(page);
+                }
+                var fd = r.SingleOrDefault(e => e.Name == frontdoorName);
+
+                // front door found, apply certificate
+                if (fd != null)
+                {
+                    foreach (var fdh in fd.FrontendEndpoints)
+                    {
+                        if (dnsNames.Contains(fdh.HostName))
+                        {
+                            var chc = new CustomHttpsConfiguration();
+                            chc.CertificateSource = "AzureKeyVault";
+                            chc.Vault =
+                                new KeyVaultCertificateSourceParametersVault(_options.KeyVaultId);
+                            chc.SecretName = certBundle.Properties.Name;
+                            chc.SecretVersion = certBundle.Properties.Version;
+                            chc.MinimumTlsVersion = "1.2";
+                            await _frontDoorManagementClient.FrontendEndpoints.BeginEnableHttpsAsync(fd.Id.Split('/')[4], fd.Name, fdh.Name, chc);
+                        }
+                    }
+                }
+            }
+
+            return ret;
         }
 
         [FunctionName(nameof(CleanupDnsChallenge))]

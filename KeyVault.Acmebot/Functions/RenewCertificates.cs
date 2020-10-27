@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 
 using DurableTask.TypedProxy;
 
+using KeyVault.Acmebot.Contracts;
+
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Extensions.Logging;
@@ -38,6 +40,7 @@ namespace KeyVault.Acmebot.Functions
                 {
                     // 証明書の更新処理を開始
                     await context.CallSubOrchestratorWithRetryAsync(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, dnsNames);
+                    await context.CallSubOrchestratorAsync(nameof(SharedFunctions.IssueCertificate), (dnsNames, certificate.FrontDoor));
                 }
                 catch (Exception ex)
                 {
