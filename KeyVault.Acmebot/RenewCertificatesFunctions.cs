@@ -39,7 +39,7 @@ namespace KeyVault.Acmebot
                 try
                 {
                     // 証明書の更新処理を開始
-                    await context.CallSubOrchestratorAsync(nameof(SharedFunctions.IssueCertificate), dnsNames);
+                    await context.CallSubOrchestratorAsync(nameof(SharedFunctions.IssueCertificate), (dnsNames, certificate.FrontDoor));
                 }
                 catch (Exception ex)
                 {

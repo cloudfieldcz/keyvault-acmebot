@@ -8,6 +8,9 @@ using DurableTask.TypedProxy;
 
 using KeyVault.Acmebot.Models;
 
+using Microsoft.Azure.Management.FrontDoor.Models;
+using Microsoft.Azure.Management.ResourceManager.Models;
+
 namespace KeyVault.Acmebot.Contracts
 {
     public interface ISharedFunctions
@@ -17,6 +20,8 @@ namespace KeyVault.Acmebot.Contracts
         Task<IList<CertificateItem>> GetAllCertificates(object input = null);
 
         Task<IList<string>> GetZones(object input = null);
+
+        Task<List<AzureFrontDoor>> GetAllFDoors(object input = null);
 
         Task<OrderDetails> Order(string[] dnsNames);
 
@@ -32,7 +37,7 @@ namespace KeyVault.Acmebot.Contracts
         [RetryOptions("00:00:05", 12, HandlerType = typeof(RetryStrategy), HandlerMethodName = nameof(RetryStrategy.RetriableException))]
         Task CheckIsReady((OrderDetails, IList<AcmeChallengeResult>) input);
 
-        Task<CertificateItem> FinalizeOrder((string[], OrderDetails) input);
+        Task<CertificateItem> FinalizeOrder((string[], OrderDetails, string) input);
 
         Task CleanupDnsChallenge(IList<AcmeChallengeResult> challengeResults);
 

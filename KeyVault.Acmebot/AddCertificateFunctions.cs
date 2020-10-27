@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 using Azure.WebJobs.Extensions.HttpApi;
 
@@ -36,8 +38,13 @@ namespace KeyVault.Acmebot
                 return ValidationProblem(ModelState);
             }
 
+            // sort domains - shortest first
+            var domains = new string[request.DnsNames.Length];
+            Array.Copy(request.DnsNames, domains, request.DnsNames.Length);
+            request.DnsNames = domains.OrderBy(e => e.Length).ToArray();
+
             // Function input comes from the request content.
-            var instanceId = await starter.StartNewAsync(nameof(SharedFunctions.IssueCertificate), request.DnsNames);
+            var instanceId = await starter.StartNewAsync(nameof(SharedFunctions.IssueCertificate), (request));
 
             log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 

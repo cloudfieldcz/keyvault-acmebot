@@ -17,6 +17,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
+using Microsoft.Azure.Management.FrontDoor;
+using Microsoft.Rest;
+using Microsoft.Azure.Management.ResourceManager;
+using Azure.Security.KeyVault.Secrets;
+
 [assembly: FunctionsStartup(typeof(Startup))]
 
 namespace KeyVault.Acmebot
@@ -71,6 +76,40 @@ namespace KeyVault.Acmebot
                 });
 
                 return new CertificateClient(new Uri(options.Value.VaultBaseUrl), credential);
+            });
+
+            builder.Services.AddSingleton(provider =>
+            {
+                var options = provider.GetRequiredService<IOptions<AcmebotOptions>>();
+                var environment = provider.GetRequiredService<IAzureEnvironment>();
+
+                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    AuthorityHost = new Uri(environment.ActiveDirectory)
+                });
+
+                return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
+            });
+
+            builder.Services.AddSingleton(provider =>
+            {
+                var options = provider.GetRequiredService<IOptions<AcmebotOptions>>().Value;
+                var environment = provider.GetRequiredService<IAzureEnvironment>();
+
+                return new FrontDoorManagementClient(new Uri(environment.ResourceManager), new TokenCredentials(new ManagedIdentityTokenProvider(environment)))
+                {
+                    SubscriptionId = options.SubscriptionId
+                };
+            });
+            builder.Services.AddSingleton(provider =>
+            {
+                var options = provider.GetRequiredService<IOptions<AcmebotOptions>>().Value;
+                var environment = provider.GetRequiredService<IAzureEnvironment>();
+
+                return new ResourceManagementClient(new Uri(environment.ResourceManager), new TokenCredentials(new ManagedIdentityTokenProvider(environment)))
+                {
+                    SubscriptionId = options.SubscriptionId
+                };
             });
 
             builder.Services.AddSingleton<IAcmeProtocolClientFactory, AcmeProtocolClientFactory>();

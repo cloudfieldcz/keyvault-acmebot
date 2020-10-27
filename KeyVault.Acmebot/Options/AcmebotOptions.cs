@@ -16,6 +16,11 @@ namespace KeyVault.Acmebot.Options
         [Required]
         public string VaultBaseUrl { get; set; }
 
+        [Required]
+        public string KeyVaultId { get; set; }
+
+        public string CertBlobStoreConnString { get; set; }
+
         [Url]
         public string Webhook { get; set; }
 

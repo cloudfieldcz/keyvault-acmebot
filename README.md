@@ -1,9 +1,5 @@
 # Key Vault Acmebot
 
-![Build](https://github.com/shibayan/keyvault-acmebot/workflows/Build/badge.svg)
-[![Release](https://img.shields.io/github/release/shibayan/keyvault-acmebot.svg)](https://github.com/shibayan/keyvault-acmebot/releases/latest)
-[![License](https://img.shields.io/github/license/shibayan/keyvault-acmebot.svg)](https://github.com/shibayan/keyvault-acmebot/blob/master/LICENSE)
-
 This application automates the issuance and renewal of ACME SSL/TLS certificates. The certificates are stored inside Azure Key Vault. Many Azure services such as Azure App Service, Application Gateway, CDN, etc. are able to import certificates directly from Key Vault.
 
 We have started to address the following requirements:
@@ -22,13 +18,13 @@ Key Vault allows for secure and centralized management of ACME certificates.
 
 Key Vault Acmebot v3 has been released since December 31, 2019. Users deploying earlier than this are encouraged to upgrade to v3 by following the ugprade process described here:
 
-https://github.com/shibayan/keyvault-acmebot/issues/80
+https://github.com/cloudfieldcz/keyvault-acmebot/issues/80
 
 ### Automate Azure CDN / Front Door certificates deployment
 
 As of August 2020, Azure CDN / Front Door does not automatically deploy new Key Vault certificates. I develop an utility application to automatically deploy a new version of the certificate.
 
-https://github.com/shibayan/keyvault-certificate-rotation
+https://github.com/cloudfieldcz/keyvault-certificate-rotation
 
 ## Table Of Contents
 
@@ -71,19 +67,19 @@ You will need the following:
 
 For Azure Cloud
 
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fshibayan%2Fkeyvault-acmebot%2Fmaster%2Fazuredeploy.json" target="_blank">
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcloudfieldcz%2Fkeyvault-acmebot%2Fmaster%2Fazuredeploy.json" target="_blank">
   <img src="https://aka.ms/deploytoazurebutton" />
 </a>
 
 For Azure China
 
-<a href="https://portal.azure.cn/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fshibayan%2Fkeyvault-acmebot%2Fmaster%2Fazuredeploy.json" target="_blank">
+<a href="https://portal.azure.cn/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcloudfieldcz%2Fkeyvault-acmebot%2Fmaster%2Fazuredeploy.json" target="_blank">
   <img src="https://aka.ms/deploytoazurebutton" />
 </a>
 
 For Azure Government
 
-<a href="https://portal.azure.us/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fshibayan%2Fkeyvault-acmebot%2Fmaster%2Fazuredeploy.json" target="_blank">
+<a href="https://portal.azure.us/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcloudfieldcz%2Fkeyvault-acmebot%2Fmaster%2Fazuredeploy.json" target="_blank">
   <img src="https://aka.ms/deploytoazurebutton" />
 </a>
 
@@ -126,7 +122,7 @@ Open the `Access Control (IAM)` of the target DNS zone or resource group contain
 
 When using a DNS provider other than Azure DNS, please refer to the following page for configuration.
 
-https://github.com/shibayan/keyvault-acmebot/wiki/DNS-Provider-Configuration
+https://github.com/cloudfieldcz/keyvault-acmebot/wiki/DNS-Provider-Configuration
 
 ### 5. Add to Key Vault access policies (if you use an existing Key Vault)
 
@@ -198,4 +194,4 @@ To Reinstall or Upgrade Key Vault Acmebot without removing your certificates, en
 
 ## License
 
-This project is licensed under the [Apache License 2.0](https://github.com/shibayan/keyvault-acmebot/blob/master/LICENSE)
+This project is licensed under the [Apache License 2.0](https://github.com/cloudfieldcz/keyvault-acmebot/blob/master/LICENSE)

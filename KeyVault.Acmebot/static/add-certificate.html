@@ -31,6 +31,25 @@
             </div>
           </div>
         </div>
+
+        <div class="field is-horizontal">
+          <div class="field-label">
+            <label class="label">Front door</label>
+          </div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <div class="select" :class="{ 'is-loading': loading }">
+                  <select v-model="frontdoorName" @change="resetFD">
+                    <option disabled value="">Please select one</option>
+                    <option v-for="frontdoor in frontdoors" :value="frontdoor">{{ frontdoor }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="field is-horizontal">
           <div class="field-label">
             <label class="label">DNS Names</label>
@@ -97,7 +116,11 @@
         dnsNames: [],
         recordName: "",
         loading: false,
-        sending: false
+        sending: false,
+        frontdoors: [],
+        frontdoorsRaw: [],
+        zoneName: "",
+        frontdoorName: ""
       },
       methods: {
         load: async function () {
@@ -113,6 +136,20 @@
             alert(error);
           }
 
+          try {
+            const response = await axios.get("/api/get-frontdoors");
+
+            if (response.status === 200) {
+              this.$set(this, "frontdoorsRaw", response.data);
+              this.frontdoors = [];
+              this.frontdoorsRaw.forEach((value, index) => {
+                this.frontdoors.push(value.Name);
+              });
+            }
+          } catch (error) {
+            alert(error);
+          }
+
           this.loading = false;
         },
         reload: function () {
@@ -120,11 +157,18 @@
           this.zoneName = "";
           this.dnsNames = [];
           this.recordName = "";
+          this.frontdoors = [];
+          this.frontdoorsRaw = [];
+          this.frontdoorName = "";
 
           this.load();
         },
         add: function () {
           if (this.zoneName === "") {
+            return;
+          }
+
+          if (this.frontdoorName === "") {
             return;
           }
 
@@ -143,11 +187,28 @@
           this.dnsNames = [];
           this.recordName = "";
         },
+        resetFD: function (event) {
+          this.frontdoorsRaw.forEach((value, index) => {
+            if (event.target.value == value.Name) {
+              value.Hostnames.forEach((value2, index) => {
+                if (this.zoneName == value2 || value2.endsWith("." + this.zoneName)) {
+                  if (this.dnsNames.indexOf(value2) === -1) {
+                    this.dnsNames.push(value2);
+                  }
+                }
+              });
+              return;
+            }
+          });
+        },
         submit: async function () {
+          if (this.frontdoorName === "") {
+            alert("No Front Door selected");
+          }
           this.sending = true;
 
           try {
-            let response = await axios.post("/api/add-certificate", { DnsNames: this.dnsNames });
+            let response = await axios.post("/api/add-certificate", { DnsNames: this.dnsNames, FrontDoor: this.frontdoorName });
 
             while (true) {
               await delay(5000);
