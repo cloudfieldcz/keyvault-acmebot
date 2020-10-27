@@ -140,7 +140,7 @@
             },
             {
               "name": "WEBSITE_RUN_FROM_PACKAGE",
-              "value": "https://shibayan.blob.core.windows.net/azure-keyvault-letsencrypt/v3/latest.zip"
+              "value": "https://cloudfield.blob.core.windows.net/release/acmebot/v3/latest.zip"
             },
             {
               "name": "FUNCTIONS_EXTENSION_VERSION",
