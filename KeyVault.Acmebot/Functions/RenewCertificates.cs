@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using DurableTask.TypedProxy;
 
 using KeyVault.Acmebot.Contracts;
-
+using KeyVault.Acmebot.Models;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Extensions.Logging;
@@ -36,11 +36,17 @@ namespace KeyVault.Acmebot.Functions
 
                 log.LogInformation($"{certificate.Id} - {certificate.ExpiresOn}");
 
+                var request = new AddCertificateRequest();
+                request.FrontDoor = certificate.FrontDoor;
+                request.DnsNames = new string[dnsNames.Count];
+                dnsNames.CopyTo(request.DnsNames, 0);
+
                 try
                 {
                     // 証明書の更新処理を開始
                     await context.CallSubOrchestratorWithRetryAsync(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, dnsNames);
                     await context.CallSubOrchestratorAsync(nameof(SharedFunctions.IssueCertificate), (dnsNames, certificate.FrontDoor));
+                    await context.CallSubOrchestratorAsync(nameof(SharedFunctions.IssueCertificate), (request));
                 }
                 catch (Exception ex)
                 {
