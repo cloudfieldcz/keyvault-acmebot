@@ -63,7 +63,12 @@ namespace KeyVault.Acmebot.Providers
         {
             var resourceGroup = ExtractResourceGroup(zone.Id);
 
-            await _dnsManagementClient.RecordSets.DeleteAsync(resourceGroup, zone.Name, relativeRecordName, RecordType.TXT);
+            // we ignore exception -> when resource LOCK is used than we cannot delete records
+            try
+            {
+                await _dnsManagementClient.RecordSets.DeleteAsync(resourceGroup, zone.Name, relativeRecordName, RecordType.TXT);
+            }
+            catch { }
         }
 
         private static string ExtractResourceGroup(string resourceId)
