@@ -19,6 +19,9 @@ namespace KeyVault.Acmebot.Models
         [JsonProperty("frontDoor")]
         public string FrontDoor { get; set; }
 
+        [JsonProperty("frontDoor")]
+        public string FrontDoor { get; set; }
+
         [JsonProperty("expiresOn")]
         public DateTimeOffset ExpiresOn { get; set; }
     }
