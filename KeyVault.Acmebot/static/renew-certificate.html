@@ -103,7 +103,7 @@
         },
         reload() {
           this.certificates = [];
-          this.certificate = "";
+          this.certificate = ""; 
 
           this.load();
         },
@@ -111,8 +111,7 @@
           this.sending = true;
 
           try {
-            let response = await axios.post("/api/certificate", { dnsNames: this.certificate.dnsNames });
-            let response = await axios.post("/api/add-certificate", { DnsNames: this.certificate.dnsNames, FrontDoor: this.certificate.frontDoor  });
+            let response = await axios.post("/api/certificate", { dnsNames: this.certificate.dnsNames, FrontDoor: this.certificate.frontDoor });
 
             while (true) {
               await delay(5000);

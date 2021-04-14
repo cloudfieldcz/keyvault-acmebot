@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using DurableTask.TypedProxy;
 
-using KeyVault.Acmebot.Contracts;
 using KeyVault.Acmebot.Models;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
@@ -32,28 +32,28 @@ namespace KeyVault.Acmebot.Functions
             // 証明書の更新を行う
             foreach (var certificate in certificates)
             {
-                var dnsNames = certificate.DnsNames;
-
                 log.LogInformation($"{certificate.Id} - {certificate.ExpiresOn}");
 
                 var request = new AddCertificateRequest();
                 request.FrontDoor = certificate.FrontDoor;
-                request.DnsNames = new string[dnsNames.Count];
-                dnsNames.CopyTo(request.DnsNames, 0);
+                request.DnsNames = new string[certificate.DnsNames.Count];
+                for (int i = 0; i < certificate.DnsNames.Count; i++)
+                {
+                    request.DnsNames[i] = certificate.DnsNames[i];
+                }
 
                 try
                 {
                     // 証明書の更新処理を開始
-                    await context.CallSubOrchestratorWithRetryAsync(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, dnsNames);
-                    await context.CallSubOrchestratorAsync(nameof(SharedFunctions.IssueCertificate), (dnsNames, certificate.FrontDoor));
-                    await context.CallSubOrchestratorAsync(nameof(SharedFunctions.IssueCertificate), (request));
+                    await context.CallSubOrchestratorWithRetryAsync(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, request);
                 }
                 catch (Exception ex)
                 {
                     // 失敗した場合はログに詳細を書き出して続きを実行する
-                    log.LogError($"Failed sub orchestration with DNS names = {string.Join(",", dnsNames)}");
+                    log.LogError($"Failed sub orchestration with DNS names = {string.Join(",", request.DnsNames)}");
                     log.LogError(ex.Message);
                 }
+                return;
             }
         }
 

@@ -8,6 +8,8 @@ using DurableTask.TypedProxy;
 
 using KeyVault.Acmebot.Models;
 
+using Microsoft.Extensions.Logging;
+
 namespace KeyVault.Acmebot.Functions
 {
     public interface ISharedActivity
@@ -24,23 +26,25 @@ namespace KeyVault.Acmebot.Functions
 
         Task<(IReadOnlyList<AcmeChallengeResult>, int)> Dns01Authorization(IReadOnlyList<string> authorizationUrls);
 
-        [RetryOptions("00:00:10", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
+        [RetryOptions("00:00:15", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
         Task CheckDnsChallenge(IReadOnlyList<AcmeChallengeResult> challengeResults);
 
         Task AnswerChallenges(IReadOnlyList<AcmeChallengeResult> challengeResults);
 
-        [RetryOptions("00:00:05", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
+        [RetryOptions("00:00:15", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
         Task CheckIsReady((OrderDetails, IReadOnlyList<AcmeChallengeResult>) input);
 
-        Task<OrderDetails> FinalizeOrder((string, IReadOnlyList<string>, OrderDetails) input);
+        Task<OrderDetails> FinalizeOrder((string, IReadOnlyList<string>, OrderDetails, string) input);
 
-        [RetryOptions("00:00:05", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
+        [RetryOptions("00:00:10", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
         Task CheckIsValid(OrderDetails orderDetails);
 
-        Task<CertificateItem> MergeCertificate((string, OrderDetails) input);
+        Task<CertificateItem> MergeCertificate((string, OrderDetails, string, string[]) input);
 
         Task CleanupDnsChallenge(IReadOnlyList<AcmeChallengeResult> challengeResults);
 
         Task SendCompletedEvent((string, DateTimeOffset?, IReadOnlyList<string>) input);
+
+        Task<List<AzureFrontDoor>> GetAllFDoors(object input = null);
     }
 }

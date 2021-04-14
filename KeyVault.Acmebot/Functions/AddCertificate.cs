@@ -44,8 +44,7 @@ namespace KeyVault.Acmebot.Functions
             request.DnsNames = domains.OrderBy(e => e.Length).ToArray();
 
             // Function input comes from the request content.
-            var instanceId = await starter.StartNewAsync(nameof(SharedOrchestrator.IssueCertificate), request.DnsNames);
-
+            var instanceId = await starter.StartNewAsync(nameof(SharedOrchestrator.IssueCertificate), request);
             log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 
             return AcceptedAtFunction(nameof(AddCertificate) + "_" + nameof(HttpPoll), new { instanceId }, null);

@@ -15,7 +15,6 @@ using DnsClient;
 
 using DurableTask.TypedProxy;
 
-using KeyVault.Acmebot.Contracts;
 using KeyVault.Acmebot.Internal;
 using KeyVault.Acmebot.Models;
 using KeyVault.Acmebot.Options;
@@ -26,25 +25,21 @@ using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using Newtonsoft.Json;
-
-namespace KeyVault.Acmebot.Functions
 using Microsoft.Azure.Management.FrontDoor;
 using Microsoft.Azure.Management.FrontDoor.Models;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.WindowsAzure.Storage;
 
-namespace KeyVault.Acmebot
+using Newtonsoft.Json;
+
+namespace KeyVault.Acmebot.Functions
 {
     public class SharedActivity : ISharedActivity
     {
         public SharedActivity(LookupClient lookupClient, AcmeProtocolClientFactory acmeProtocolClientFactory,
                               IDnsProvider dnsProvider, CertificateClient certificateClient,
-                              WebhookInvoker webhookInvoker, IOptions<AcmebotOptions> options, ILogger<SharedActivity> logger)
-        public SharedFunctions(LookupClient lookupClient, IAcmeProtocolClientFactory acmeProtocolClientFactory,
-                               IDnsProvider dnsProvider, CertificateClient certificateClient,
-                               WebhookClient webhookClient, IOptions<AcmebotOptions> options, ILogger<SharedFunctions> logger,
-                               FrontDoorManagementClient frontDoorManagementClient, SecretClient secretClient)
+                              WebhookInvoker webhookInvoker, IOptions<AcmebotOptions> options, ILogger<SharedActivity> logger,
+                              FrontDoorManagementClient frontDoorManagementClient, SecretClient secretClient)
         {
             _acmeProtocolClientFactory = acmeProtocolClientFactory;
             _dnsProvider = dnsProvider;
@@ -75,15 +70,14 @@ namespace KeyVault.Acmebot
         public async Task<IReadOnlyList<CertificateItem>> GetExpiringCertificates([ActivityTrigger] DateTime currentDateTime)
         {
             var certificates = _certificateClient.GetPropertiesOfCertificatesAsync();
-
             var result = new List<CertificateItem>();
 
             await foreach (var certificate in certificates)
             {
-                if (!certificate.TagsFilter(IssuerName, _options.Endpoint))
-                {
-                    continue;
-                }
+                //if (!certificate.TagsFilter(IssuerName, _options.Endpoint))
+                //{
+                //    continue;
+                //}
 
                 if ((certificate.ExpiresOn.Value - currentDateTime).TotalDays > 30)
                 {
@@ -100,7 +94,6 @@ namespace KeyVault.Acmebot
         public async Task<IReadOnlyList<CertificateItem>> GetAllCertificates([ActivityTrigger] object input = null)
         {
             var certificates = _certificateClient.GetPropertiesOfCertificatesAsync();
-
             var result = new List<CertificateItem>();
 
             await foreach (var certificate in certificates)
@@ -349,14 +342,9 @@ namespace KeyVault.Acmebot
         }
 
         [FunctionName(nameof(FinalizeOrder))]
-        public async Task<OrderDetails> FinalizeOrder([ActivityTrigger] (string, IReadOnlyList<string>, OrderDetails) input)
+        public async Task<OrderDetails> FinalizeOrder([ActivityTrigger] (string, IReadOnlyList<string>, OrderDetails, string) input)
         {
-            var (dnsNames, orderDetails, frontdoorName) = input;
-
-            // create certificate name
-            var arrNames = dnsNames[0].Replace("*", "wildcard").Split('.');
-            Array.Reverse(arrNames);
-            var certificateName = String.Join("-", arrNames);
+            var (certificateName, dnsNames, orderDetails, frontdoorName) = input;
 
             byte[] csr;
 
@@ -367,7 +355,7 @@ namespace KeyVault.Acmebot
 
                 foreach (var dnsName in dnsNames)
                 {
-                    subjectAlternativeNames.DnsNames.Add(dnsName);
+                    subjectAlternativeNames.DnsNames.Add(dnsName.ToString());
                 }
 
                 //var policy = new CertificatePolicy(WellKnownIssuerNames.Unknown, subjectAlternativeNames);
@@ -422,9 +410,9 @@ namespace KeyVault.Acmebot
         }
 
         [FunctionName(nameof(MergeCertificate))]
-        public async Task<CertificateItem> MergeCertificate([ActivityTrigger] (string, OrderDetails) input)
+        public async Task<CertificateItem> MergeCertificate([ActivityTrigger] (string, OrderDetails, string, string[]) input)
         {
-            var (certificateName, orderDetails) = input;
+            var (certificateName, orderDetails, frontdoorName, dnsNames) = input;
 
             var acmeProtocolClient = await _acmeProtocolClientFactory.CreateClientAsync();
 

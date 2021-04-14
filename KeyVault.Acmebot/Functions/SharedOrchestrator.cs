@@ -1,10 +1,14 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using DurableTask.TypedProxy;
 
+using KeyVault.Acmebot.Models;
+
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
+using Microsoft.Extensions.Logging;
 
 namespace KeyVault.Acmebot.Functions
 {
@@ -13,8 +17,13 @@ namespace KeyVault.Acmebot.Functions
         [FunctionName(nameof(IssueCertificate))]
         public async Task IssueCertificate([OrchestrationTrigger] IDurableOrchestrationContext context)
         {
-            var dnsNames = context.GetInput<string[]>();
-            var certificateName = dnsNames[0].Replace("*", "wildcard").Replace(".", "-");
+            var certReq = context.GetInput<AddCertificateRequest>();
+            var dnsNames = certReq.DnsNames;
+
+            //var certificateName = dnsNames[0].Replace("*", "wildcard").Replace(".", "-");
+            var arrNames = dnsNames[0].Replace("*", "wildcard").Split('.');
+            Array.Reverse(arrNames);
+            var certificateName = String.Join("-", arrNames);
 
             var activity = context.CreateActivityProxy<ISharedActivity>();
 
@@ -47,7 +56,7 @@ namespace KeyVault.Acmebot.Functions
             }
 
             // Key Vault で CSR を作成し Finalize を実行
-            orderDetails = await activity.FinalizeOrder((certificateName, dnsNames, orderDetails));
+            orderDetails = await activity.FinalizeOrder((certificateName, dnsNames, orderDetails, certReq.FrontDoor));
 
             // Finalize の時点でステータスが valid の時点はスキップ
             if (orderDetails.Payload.Status != "valid")
@@ -57,7 +66,7 @@ namespace KeyVault.Acmebot.Functions
             }
 
             // 証明書をダウンロードし Key Vault に保存
-            var certificate = await activity.MergeCertificate((certificateName, orderDetails));
+            var certificate = await activity.MergeCertificate((certificateName, orderDetails, certReq.FrontDoor, dnsNames));
 
             // 証明書の更新が完了後に Webhook を送信する
             await activity.SendCompletedEvent((certificate.Name, certificate.ExpiresOn, dnsNames));

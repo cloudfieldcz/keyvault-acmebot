@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Azure.WebJobs.Extensions.HttpApi;
 
 using DurableTask.TypedProxy;
 
-using KeyVault.Acmebot.Contracts;
 using KeyVault.Acmebot.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -15,21 +15,21 @@ using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 
-namespace KeyVault.Acmebot
+namespace KeyVault.Acmebot.Functions
 {
-    class GetFrontDoorsFunctions : HttpFunctionBase
+    class GetFrontDoors : HttpFunctionBase
     {
-        public GetFrontDoorsFunctions(IHttpContextAccessor httpContextAccessor)
+        public GetFrontDoors(IHttpContextAccessor httpContextAccessor)
             : base(httpContextAccessor)
         {
         }
 
-        [FunctionName(nameof(GetFrontDoors))]
-        public async Task<IList<AzureFrontDoor>> GetFrontDoors([OrchestrationTrigger] IDurableOrchestrationContext context)
+        [FunctionName(nameof(GetFrontDoors) + "_" + nameof(Orchestrator))]
+        public async Task<IList<AzureFrontDoor>> Orchestrator([OrchestrationTrigger] IDurableOrchestrationContext context)
         {
-            var activity = context.CreateActivityProxy<ISharedFunctions>();
+            var activity = context.CreateActivityProxy<ISharedActivity>();
 
-            var frontdoors = await activity.GetAllFDoors();
+            var frontdoors = await activity.GetAllFDoors(null);
 
             frontdoors.Insert(0, new AzureFrontDoor("#CERTIFICATE-2048#", new List<string>()));
             frontdoors.Insert(0, new AzureFrontDoor("#CERTIFICATE-4096#", new List<string>()));
@@ -51,7 +51,7 @@ namespace KeyVault.Acmebot
             }
 
             // Function input comes from the request content.
-            string instanceId = await starter.StartNewAsync(nameof(GetFrontDoors), null);
+            string instanceId = await starter.StartNewAsync(nameof(GetFrontDoors) + "_" + nameof(Orchestrator), null);
 
             log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 

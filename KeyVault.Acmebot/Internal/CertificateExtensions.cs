@@ -39,7 +39,6 @@ namespace KeyVault.Acmebot.Internal
                 Id = certificate.Id,
                 Name = certificate.Name,
                 FrontDoor = (certificate.Properties.Tags.ContainsKey("FrontDoor") ? certificate.Properties.Tags["FrontDoor"] : ""),
-                DnsNames = dnsNames != null && dnsNames.Count > 0 ? dnsNames : new[] { certificate.Policy.Subject.Substring(3) },
                 DnsNames = dnsNames != null && dnsNames.Length > 0 ? dnsNames : new[] { certificate.Policy.Subject.Substring(3) },
                 ExpiresOn = certificate.Properties.ExpiresOn.Value
             };

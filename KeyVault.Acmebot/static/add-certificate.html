@@ -104,13 +104,9 @@
       return new Promise(resolve => setTimeout(() => resolve(), millisecondsDelay));
     }
 
-    Vue.filter("punycode", function (value) {
-      return punycode.toUnicode(value);
-    });
-
-    const app = new Vue({
-      el: "#app",
-      data: {
+    const app = {
+      data() {
+        return {
         zones: [],
         zoneName: "",
         dnsNames: [],
@@ -121,6 +117,7 @@
         frontdoorsRaw: [],
         zoneName: "",
         frontdoorName: ""
+        };
       },
       methods: {
         async load() {
@@ -138,9 +135,8 @@
 
           try {
             const response = await axios.get("/api/get-frontdoors");
-
             if (response.status === 200) {
-              this.$set(this, "frontdoorsRaw", response.data);
+              this.frontdoorsRaw = response.data;
               this.frontdoors = [];
               this.frontdoorsRaw.forEach((value, index) => {
                 this.frontdoors.push(value.Name);
@@ -208,7 +204,7 @@
           this.sending = true;
 
           try {
-            let response = await axios.post("/api/add-certificate", { DnsNames: this.dnsNames, FrontDoor: this.frontdoorName });
+            let response = await axios.post("/api/certificate", { DnsNames: this.dnsNames, FrontDoor: this.frontdoorName });
 
             while (true) {
               await delay(5000);

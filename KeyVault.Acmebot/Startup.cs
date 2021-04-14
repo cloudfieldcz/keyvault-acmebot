@@ -11,11 +11,14 @@ using KeyVault.Acmebot.Providers;
 
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
+using Microsoft.Azure.Management.FrontDoor;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Rest;
+using Azure.Security.KeyVault.Secrets;
 
 [assembly: FunctionsStartup(typeof(KeyVault.Acmebot.Startup))]
 
@@ -80,6 +83,34 @@ namespace KeyVault.Acmebot
             builder.Services.AddSingleton<WebhookInvoker>();
             builder.Services.AddSingleton<ILifeCycleNotificationHelper, WebhookLifeCycleNotification>();
 
+            //add
+
+            builder.Services.AddSingleton(provider =>
+            {
+                var options = provider.GetRequiredService<IOptions<AcmebotOptions>>();
+                var environment = provider.GetRequiredService<AzureEnvironment>();
+
+                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    AuthorityHost = environment.ActiveDirectory
+                });
+
+                return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
+            });
+
+            builder.Services.AddSingleton(provider =>
+            {
+                var options = provider.GetRequiredService<IOptions<AcmebotOptions>>().Value;
+                var environment = provider.GetRequiredService<AzureEnvironment>();
+
+                return new FrontDoorManagementClient( environment.ResourceManager, new TokenCredentials(new ManagedIdentityTokenProvider(environment)))
+                {
+                    SubscriptionId = options.SubscriptionId
+                };
+            });
+
+
+            ////add end
             builder.Services.AddSingleton<IDnsProvider>(provider =>
             {
                 var options = provider.GetRequiredService<IOptions<AcmebotOptions>>().Value;
